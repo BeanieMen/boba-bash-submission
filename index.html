@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Big Man Boba</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400,700&display=swap"
+        />
+
+        <style>
+            body {
+                font-family: "Fredoka", sans-serif;
+                background: #f7ebe1;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body class="min-h-screen flex flex-col items-center justify-center gap-3">
+        <canvas
+            id="bobaCanvas"
+            width="300"
+            height="400"
+            class="bg-amber-200 border-4 border-stone-800 rounded-b-[40px] touch-none"
+        ></canvas>
+        <p class="text-sm">Click to drop pearls. Move the mouse to stir.</p>
+    </body>
+
+    <script>
+        const canvas = document.getElementById("bobaCanvas");
+        const context = canvas.getContext("2d");
+
+        // evil constants
+        const CUP_HEIGHT = 400;
+        const CUP_WIDTH = 300;
+        const PEARL_RADIUS = 10;
+        const GRAVTIY = 0.4;
+        const TEA_DRAG = 0.97;
+        const WALL_BOUNCE = -0.3;
+        const STIR_RADIUS = 40;
+        const STIR_STRENGTH = 0.3;
+
+        const pearls = [];
+        let strawX = 0,
+            strawY = 0;
+        let strawVelocityX = 0,
+            strawVelocityY = 0;
+
+        function dropPearl(startX = CUP_WIDTH / 2) {
+            pearls.push({
+                x: startX,
+                y: 20,
+                velocityX: 0,
+                velocityY: 0,
+            });
+        }
+
+        for (let pearlIndex = 0; pearlIndex < 20; pearlIndex++) {
+            const randomX = 60 + Math.random() * 180;
+            setTimeout(() => {
+                dropPearl(randomX);
+            }, pearlIndex * 60);
+        }
+
+        canvas.onclick = (event) => {
+            dropPearl(event.offsetX);
+        };
+
+        canvas.onpointermove = (event) => {
+            strawVelocityX = event.offsetX - strawX;
+            strawVelocityY = event.offsetY - strawY;
+            strawX = event.offsetX;
+            strawY = event.offsetY;
+        };
+
+        function movePearls() {
+            for (const pearl of pearls) {
+                pearl.velocityY += GRAVTIY;
+                pearl.velocityX *= TEA_DRAG;
+                pearl.velocityY *= TEA_DRAG;
+
+                const distanceToStraw = Math.hypot(
+                    pearl.x - strawX,
+                    pearl.y - strawY,
+                );
+
+                if (distanceToStraw < STIR_RADIUS) {
+                    pearl.velocityX += strawVelocityX * STIR_STRENGTH;
+                    pearl.velocityY += strawVelocityY * STIR_STRENGTH;
+                }
+
+                pearl.x += pearl.velocityX;
+                pearl.y += pearl.velocityY;
+
+                if (pearl.x < PEARL_RADIUS) {
+                    pearl.x = PEARL_RADIUS;
+                    pearl.velocityX *= WALL_BOUNCE;
+                }
+
+                if (pearl.x > CUP_WIDTH - PEARL_RADIUS) {
+                    pearl.x = CUP_WIDTH - PEARL_RADIUS;
+                    pearl.velocityX *= WALL_BOUNCE;
+                }
+
+                if (pearl.y > CUP_HEIGHT - PEARL_RADIUS) {
+                    pearl.y = CUP_HEIGHT - PEARL_RADIUS;
+                    pearl.velocityY *= WALL_BOUNCE;
+                }
+            }
+        }
+
+        function separateOverlappingPearls() {
+            for (const pearl of pearls) {
+                for (const secondPearl of pearls) {
+                    // really shitty and slow way i know idc die
+                    if (pearl == secondPearl) continue;
+                    const gapX = secondPearl.x - pearl.x;
+                    const gapY = secondPearl.y - pearl.y;
+                    const distance = Math.hypot(gapX, gapY);
+                    const minimumDistance = PEARL_RADIUS * 2;
+
+                    if (distance < minimumDistance && distance > 0) {
+                        const push = (minimumDistance - distance) / 2;
+                        const directionX = gapX / distance;
+                        const directionY = gapY / distance;
+
+                        pearl.x -= directionX * push;
+                        pearl.y -= directionY * push;
+                        secondPearl.x += directionX * push;
+                        secondPearl.y += directionY * push;
+                    }
+                }
+            }
+        }
+
+        function fadeStraw() {
+            strawVelocityX *= TEA_DRAG;
+            strawVelocityY *= TEA_DRAG;
+        }
+
+        function drawPearls() {
+            context.clearRect(0, 0, CUP_WIDTH, CUP_HEIGHT);
+            context.fillStyle = "#2a1a12";
+            for (const pearl of pearls) {
+                context.beginPath();
+                context.arc(pearl.x, pearl.y, PEARL_RADIUS, 0, Math.PI * 2);
+                context.fill();
+            }
+        }
+
+        function main() {
+            movePearls();
+            separateOverlappingPearls();
+            fadeStraw();
+            drawPearls();
+            requestAnimationFrame(main);
+        }
+        main();
+    </script>
+</html>
